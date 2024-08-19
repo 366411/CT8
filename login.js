@@ -1,36 +1,44 @@
 const fs = require('fs');
 const puppeteer = require('puppeteer');
 
+function formatToISO(date) {
+  return date.toISOString().replace('T', ' ').replace('Z', '').replace(/\.\d{3}Z/, '');
+}
+
+async function delayTime(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
+
 (async () => {
-  // 读取 accounts.json 文件中的 JSON 字符串
+  // 读取 accounts.json 中的 JSON 字符串
   const accountsJson = fs.readFileSync('accounts.json', 'utf-8');
   const accounts = JSON.parse(accountsJson);
 
   for (const account of accounts) {
-    const { username, password } = account;
+    const { username, password, panelnum } = account;
 
     const browser = await puppeteer.launch({ headless: false });
     const page = await browser.newPage();
 
+    let url = `https://pane.ct8.pl/login/?next=/`;
+
     try {
-      await page.goto('https://panel.ct8.pl');
+      // 修改网址为新的登录页面
+      await page.goto(url);
 
-      // 等待页面加载完成
-      await page.waitForTimeout(10000); // 增加等待时间，等待页面加载完全
-
-      // 清空Handle输入框的原有值-FREE
-      const handleInput = await page.$('#id_handle');
-      if (handleInput) {
-        await handleInput.click({ clickCount: 3 }); // 选中输入框的内容
-        await handleInput.press('Backspace'); // 删除原有值
+      // 清空用户名输入框的原有值
+      const usernameInput = await page.$('#id_username');
+      if (usernameInput) {
+        await usernameInput.click({ clickCount: 3 }); // 选中输入框的内容
+        await usernameInput.press('Backspace'); // 删除原来的值
       }
 
       // 输入实际的账号和密码
-      await page.type('#id_handle', username);
+      await page.type('#id_username', username);
       await page.type('#id_password', password);
 
       // 提交登录表单
-      const loginButton = await page.$('.action[type="submit"]');
+      const loginButton = await page.$('#submit');
       if (loginButton) {
         await loginButton.click();
       } else {
@@ -42,12 +50,15 @@ const puppeteer = require('puppeteer');
 
       // 判断是否登录成功
       const isLoggedIn = await page.evaluate(() => {
-        const loginButton = document.querySelector('.action[value="Login"]');
-        return loginButton === null;
+        const logoutButton = document.querySelector('a[href="/logout/"]');
+        return logoutButton !== null;
       });
 
       if (isLoggedIn) {
-        console.log(`账号 ${username} 登录成功！`);
+        // 获取当前的UTC时间和北京时间
+        const nowUtc = formatToISO(new Date());// UTC时间
+        const nowBeijing = formatToISO(new Date(new Date().getTime() + 8 * 60 * 60 * 1000)); // 北京时间东8区，用算术来搞
+        console.log(`账号 ${username} 于北京时间 ${nowBeijing}（UTC时间 ${nowUtc}）登录成功！`);
       } else {
         console.error(`账号 ${username} 登录失败，请检查账号和密码是否正确。`);
       }
@@ -59,7 +70,7 @@ const puppeteer = require('puppeteer');
       await browser.close();
 
       // 用户之间添加随机延时
-      const delay = Math.floor(Math.random() * 5000) + 1000; // 随机延时1秒到6秒之间
+      const delay = Math.floor(Math.random() * 8000) + 1000; // 随机延时1秒到8秒之间
       await delayTime(delay);
     }
   }
