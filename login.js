@@ -13,7 +13,7 @@ const puppeteer = require('puppeteer');
     const page = await browser.newPage();
 
     try {
-      await page.goto('https://nic.eu.org/arf/en/');
+      await page.goto('https://panel.ct8.pl');
 
       // 等待页面加载完成
       await page.waitForTimeout(10000); // 增加等待时间，等待页面加载完全
